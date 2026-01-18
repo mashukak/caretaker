@@ -13,7 +13,7 @@ function Header() {
   return (
     <header className="header">
       <Link to="/" className="logo">
-        <img src="./public/caretaker.jpg" alt="Caretaker" />
+        <img src="/caretaker.jpg" alt="Caretaker" />
         <span>Caretaker</span>
       </Link>
 
