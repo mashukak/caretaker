@@ -7,7 +7,7 @@ function Home() {
 
   return (
     <section className="page">
-      <h2 className="page-title">Willkommen, {user.fullName} 👋</h2>
+      <h2 className="page-title">Willkommen, {user.fullName}    ! 👋</h2>
       <p className="muted">
         Was möchtest du heute machen?
       </p>

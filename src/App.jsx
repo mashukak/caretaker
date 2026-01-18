@@ -6,6 +6,8 @@ import Home from "./pages/Home";
 import CreateJob from "./pages/CreateJob";
 import Jobs from "./pages/Jobs";
 import { useAuth } from "./store/AuthContext";
+import JobDetails from "./pages/JobDetails";
+import Profile from "./pages/Profile";
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -48,6 +50,24 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/job/:id"
+          element={
+            <ProtectedRoute>
+              <JobDetails />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+  path="/profile"
+  element={
+    <ProtectedRoute>
+      <Profile />
+    </ProtectedRoute>
+  }
+/>
+
       </Routes>
     </BrowserRouter>
   );

@@ -28,7 +28,7 @@ function Auth() {
 
     if (!fullName.trim()) return setError("Bitte Namen eingeben.");
     if (!regEmail.trim()) return setError("Bitte E-Mail eingeben.");
-    if (!age || Number(age) < 15) return setError("Sie müssen 16 sein, um ein Konto zu erstellen.");
+    if (!age || Number(age) < 16) return setError("Sie müssen 16 sein, um ein Konto zu erstellen.");
 
     try {
       const created = createUser({ fullName, age, email: regEmail, description });

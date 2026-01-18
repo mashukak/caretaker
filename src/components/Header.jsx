@@ -20,7 +20,14 @@ function Header() {
       <nav>
         {user ? (
           <div className="nav-user">
-            <span className="user-name">{user.fullName}</span>
+            <span
+  className="user-name"
+  onClick={() => navigate("/profile")}
+  style={{ cursor: "pointer" }}
+>
+  {user.fullName}
+</span>
+
             <button className="linklike" onClick={handleLogout}>
               Logout
             </button>

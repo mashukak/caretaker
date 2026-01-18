@@ -1,43 +1,58 @@
-import { useMemo, useState } from "react";
-import { getJobs } from "../store/jobsStore";
+import { useEffect, useMemo, useState } from "react";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { subscribeJobs, getJobs } from "../store/jobsStore";
+import { useNavigate } from "react-router-dom";
 
 const CAT = {
   animals: { icon: "🐕", label: "Tiere" },
   elderly: { icon: "👵", label: "Senioren" },
-  cleaning: { icon: "🧹", label: "Haushalt" },
   kids: { icon: "👶", label: "Kinder" },
-  other: { icon: "✨", label: "Sonstiges" },
 };
 
+const CENTER = { lat: 54.298333, lng: 9.66 }; // біля Helene-Lange-Gymnasium :contentReference[oaicite:3]{index=3}
+
 function Jobs() {
+  const navigate = useNavigate();
+  const [allJobs, setAllJobs] = useState(() => getJobs());
+
+  useEffect(() => subscribeJobs(setAllJobs), []);
+
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("all");
   const [maxPrice, setMaxPrice] = useState("");
 
-  const jobs = getJobs();
-
+  // тільки open показуємо
   const filtered = useMemo(() => {
-    return jobs.filter((j) => {
+    return allJobs.filter((j) => {
+      if (j.status !== "open") return false;
+
       const okText =
         !q.trim() ||
-        j.title.toLowerCase().includes(q.toLowerCase()) ||
-        j.address.toLowerCase().includes(q.toLowerCase());
+        j.title?.toLowerCase().includes(q.toLowerCase()) ||
+        j.address?.toLowerCase().includes(q.toLowerCase());
 
       const okCat = category === "all" ? true : j.category === category;
-
       const okPrice = maxPrice ? j.pricePerHour <= Number(maxPrice) : true;
 
-      return okText && okCat && okPrice && j.status === "open";
+      return okText && okCat && okPrice;
     });
-  }, [jobs, q, category, maxPrice]);
+  }, [allJobs, q, category, maxPrice]);
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+  });
 
   return (
     <section className="page">
       <h2 className="page-title">Jobs finden</h2>
-      <p className="muted">Demo-Karte + Filter. (Später: echte Google Maps)</p>
+      <p className="muted"></p>
 
       <div className="filters">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Suche (Titel oder Adresse)..." />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Suche (Titel oder Adresse)..."
+        />
 
         <select value={category} onChange={(e) => setCategory(e.target.value)}>
           <option value="all">Alle Kategorien</option>
@@ -57,30 +72,45 @@ function Jobs() {
       </div>
 
       <div className="jobs-layout">
-        {/* Map placeholder */}
-        <div className="map">
-          <div className="map-top">
-            <span className="dot online" />
-            <span>Dein Standort (Demo)</span>
-          </div>
-
-          {filtered.slice(0, 20).map((j) => (
-            <div
-              key={j.id}
-              className="pin"
-              style={{ left: `${j.demoX}%`, top: `${j.demoY}%` }}
-              title={`${CAT[j.category]?.icon ?? "📍"} ${j.title}`}
-            >
-              {CAT[j.category]?.icon ?? "📍"}
+        {/* MAP (sticky) */}
+        <div className="map-sticky">
+          {!isLoaded ? (
+            <div className="map-loading">
+              Google Map lädt… (API Key nötig)
             </div>
-          ))}
+          ) : (
+            <GoogleMap
+              center={CENTER}
+              zoom={15}
+              mapContainerClassName="gmap"
+              options={{
+                fullscreenControl: false,
+                streetViewControl: false,
+                mapTypeControl: false,
+              }}
+            >
+         
+              <Marker position={CENTER} />
+
+              {filtered.map((j) =>
+                j.lat && j.lng ? (
+                  <Marker
+                    key={j.id}
+                    position={{ lat: j.lat, lng: j.lng }}
+                    label={CAT[j.category]?.icon || "📍"}
+                    onClick={() => navigate(`/job/${j.id}`)}
+                  />
+                ) : null
+              )}
+            </GoogleMap>
+          )}
         </div>
 
-        {/* List */}
-        <div className="jobs-list">
+        {/* LIST (scroll) */}
+        <div className="jobs-list-scroll">
           {filtered.length === 0 ? (
             <div className="empty">
-              Keine Jobs gefunden. Erstelle eine neue Anzeige oder ändere Filter.
+              Keine Jobs gefunden. Ändere Filter oder erstelle einen Job.
             </div>
           ) : (
             filtered.map((j) => (
@@ -101,11 +131,8 @@ function Jobs() {
                 <div className="job-address">📍 {j.address}</div>
                 <p className="job-desc">{j.description}</p>
 
-                <button
-                  className="btn-primary"
-                  onClick={() => alert("Nächster Schritt: Chat + Buchung (kommt als nächstes)")}
-                >
-                  Anfragen / Chat starten
+                <button className="btn-primary" onClick={() => navigate(`/job/${j.id}`)}>
+                  Anfragen / Buchen
                 </button>
               </div>
             ))
