@@ -136,7 +136,7 @@ function Auth() {
           type="password"
           value={regPassword2}
           onChange={(e) => setRegPassword2(e.target.value)}
-          placeholder="Passwort повторити"
+          placeholder="Passwort wiederholen"
         />
 
         <button onClick={handleRegister} disabled={busy}>
