@@ -49,6 +49,11 @@ function CreateJob() {
   const [description, setDescription] = useState("");
   const [pricePerHour, setPricePerHour] = useState("12");
 
+  // ✅ date/time states
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [timeFrom, setTimeFrom] = useState("15:00");
+  const [timeTo, setTimeTo] = useState("16:00");
+
   const [addressQuery, setAddressQuery] = useState("Helene-Lange-Gymnasium Rendsburg");
   const [addressText, setAddressText] = useState("Helene-Lange-Gymnasium, Ritterstraße 12, 24768 Rendsburg");
 
@@ -76,7 +81,7 @@ function CreateJob() {
         setPos({ lat, lng });
         setAddressText(r[0].display_name);
       }
-    } catch (e) {
+    } catch {
       setError("Adresse nicht gefunden.");
     }
   };
@@ -86,6 +91,7 @@ function CreateJob() {
     if (!user) return navigate("/auth");
     if (!title.trim()) return setError("Bitte Titel eingeben.");
     if (!description.trim()) return setError("Bitte Beschreibung eingeben.");
+    if (timeTo <= timeFrom) return setError("Endzeit muss nach Startzeit sein.");
 
     setBusy(true);
     try {
@@ -98,9 +104,9 @@ function CreateJob() {
         address_text: addressText,
         lat: pos.lat,
         lng: pos.lng,
-        date: new Date().toISOString().slice(0, 10),
-        time_from: "15:00",
-        time_to: "16:00",
+        date,
+        time_from: timeFrom,
+        time_to: timeTo,
         status: "open",
       });
 
@@ -125,7 +131,6 @@ function CreateJob() {
             <option value="animals">🐕 Tiere</option>
             <option value="elderly">👵 Senioren</option>
             <option value="kids">👶 Kinder</option>
-            <option value="kids">💥 Sonstiges</option>
           </select>
 
           <label>Titel</label>
@@ -136,6 +141,20 @@ function CreateJob() {
 
           <label>Preis pro Stunde (€)</label>
           <input type="number" value={pricePerHour} onChange={(e) => setPricePerHour(e.target.value)} />
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label>Datum</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <div>
+              <label>Zeit</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="time" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
+                <input type="time" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
+              </div>
+            </div>
+          </div>
 
           {results.length > 0 && (
             <div className="mini-list" style={{ marginTop: 10 }}>
@@ -161,6 +180,10 @@ function CreateJob() {
           <label>Adresse</label>
           <input value={addressText} onChange={(e) => setAddressText(e.target.value)} />
 
+          <p className="muted" style={{ marginTop: 10 }}>
+            Tipp: Du kannst auch direkt auf die Karte klicken, um den Pin zu setzen.
+          </p>
+
           <button className="btn-primary" onClick={submit} disabled={busy}>
             {busy ? "..." : "Erstellen"}
           </button>
@@ -168,10 +191,7 @@ function CreateJob() {
 
         <div className="leaflet-wrap" style={{ height: "520px" }}>
           <MapContainer center={[pos.lat, pos.lng]} zoom={15} className="leaflet-map" scrollWheelZoom>
-            <TileLayer
-              attribution='&copy; OpenStreetMap contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <ClickPicker onPick={pickOnMap} />
             <Marker position={[pos.lat, pos.lng]} icon={emojiIcon("📍")} />
           </MapContainer>

@@ -94,11 +94,9 @@ if (bErr) throw bErr;
 
     alert("Gebucht! Du findest es im Profil unter 'Meine Buchungen'.");
     navigate("/profile", { replace: true });
-    const chatId = await getOrCreateChatForBooking({
-  bookingId: bookingRow.id,
-  userA: user.id,        // хто бронює
-  userB: job.owner_id,   // власник вакансії
-});
+    const chatId = await getOrCreateChatForBooking({ bookingId: bookingRow.id });
+navigate(`/chats/${chatId}`, { replace: true });
+
 
 navigate(`/chats/${chatId}`, { replace: true });
 

@@ -11,15 +11,23 @@ const CAT = {
 
 function Profile() {
   const navigate = useNavigate();
-  const { user, profile, loading, refreshProfile, logout} = useAuth();
+  const { user, profile, loading, refreshProfile, logout } = useAuth();
 
   const [myPostedJobs, setMyPostedJobs] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
+
   const [busyAvatar, setBusyAvatar] = useState(false);
-  const [error, setError] = useState("")
+  const [deletingId, setDeletingId] = useState(null);
+  const [error, setError] = useState("");
 
   const displayName =
     profile?.full_name?.trim() || (user?.email ? user.email.split("@")[0] : "User");
+
+  const ratingText = useMemo(() => {
+    const avg = profile?.rating_avg ?? 0;
+    const cnt = profile?.rating_count ?? 0;
+    return `⭐ ${avg} (${cnt})`;
+  }, [profile?.rating_avg, profile?.rating_count]);
 
   useEffect(() => {
     if (!user) return;
@@ -27,7 +35,7 @@ function Profile() {
     const load = async () => {
       setError("");
 
-      // 1) мої виставлені вакансії
+      // 1) My posted jobs
       const { data: posted, error: e1 } = await supabase
         .from("jobs")
         .select("*")
@@ -37,7 +45,7 @@ function Profile() {
       if (e1) setError(e1.message);
       else setMyPostedJobs(posted ?? []);
 
-      // 2) мої бронювання (мої роботи) + підтягуємо job через FK
+      // 2) My bookings (my work) + join job
       const { data: bookings, error: e2 } = await supabase
         .from("bookings")
         .select("id,status,created_at,job_id,jobs(*)")
@@ -69,7 +77,7 @@ function Profile() {
       if (upErr) throw upErr;
 
       const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-      const publicUrl = data.publicUrl;
+      const publicUrl = data?.publicUrl;
 
       const { error: dbErr } = await supabase
         .from("profiles")
@@ -87,11 +95,25 @@ function Profile() {
     }
   };
 
-  const ratingText = useMemo(() => {
-    const avg = profile?.rating_avg ?? 0;
-    const cnt = profile?.rating_count ?? 0;
-    return `⭐ ${avg} (${cnt})`;
-  }, [profile?.rating_avg, profile?.rating_count]);
+  const deleteJob = async (jobId) => {
+    const ok = window.confirm("Willst du diese Anzeige wirklich löschen?");
+    if (!ok) return;
+
+    setError("");
+    setDeletingId(jobId);
+
+    try {
+      const { error } = await supabase.from("jobs").delete().eq("id", jobId);
+      if (error) throw error;
+
+      // remove from UI
+      setMyPostedJobs((prev) => prev.filter((j) => j.id !== jobId));
+    } catch (err) {
+      setError(err.message || "Löschen fehlgeschlagen.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading) return <section className="page">Loading...</section>;
   if (!user) return <section className="page">Not logged in</section>;
@@ -100,15 +122,19 @@ function Profile() {
     <section className="page">
       <div className="profile-topbar">
         <h2 className="page-title">Profil</h2>
-        <button className="btn-secondary" onClick={() => navigate("/chats")}>
-          Chats
-        </button>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn-secondary" onClick={() => navigate("/chats")}>
+            Chats
+          </button>
+          
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}
 
       <div className="profile-grid">
-        {/* LEFT: profile card */}
+        {/* LEFT */}
         <div className="card profile-card">
           <div className="profile-head">
             <div className="profile-avatar">
@@ -129,39 +155,42 @@ function Profile() {
           </div>
 
           <div className="profile-fields">
-            <div><strong>Alter:</strong> {profile?.age ?? "—"}</div>
+            <div>
+              <strong>Alter:</strong> {profile?.age ?? "—"}
+            </div>
             <div>
               <strong>Beschreibung:</strong>
-              <div className="muted">{profile?.description || "Keine Beschreibung"}</div>
+              <div className="muted">{profile?.bio || "Keine Beschreibung"}</div>
             </div>
           </div>
 
           <div className="profile-actions">
-  <label className="btn-secondary" style={{ cursor: busyAvatar ? "not-allowed" : "pointer" }}>
-    {busyAvatar ? "Upload..." : "Foto hochladen"}
-    <input
-      type="file"
-      accept="image/*"
-      onChange={onAvatarChange}
-      disabled={busyAvatar}
-      style={{ display: "none" }}
-    />
-  </label>
-
-  <button
-    className="btn-secondary"
-    onClick={async () => {
-      await logout();
-      navigate("/", { replace: true });
-    }}
-  >
-    Logout
-  </button>
-</div>
-
+            <label
+              className="btn-secondary"
+              style={{ cursor: busyAvatar ? "not-allowed" : "pointer" }}
+            >
+              {busyAvatar ? "Upload..." : "Foto hochladen"}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={onAvatarChange}
+                disabled={busyAvatar}
+                style={{ display: "none" }}
+              />
+            </label>
+            <button
+            className="btn-secondary"
+            onClick={async () => {
+              await logout();
+              navigate("/", { replace: true });
+            }}
+          >
+            Logout
+          </button>
+          </div>
         </div>
 
-        {/* RIGHT: two columns */}
+        {/* RIGHT */}
         <div className="profile-columns">
           <div className="card">
             <h3>Meine Anzeigen</h3>
@@ -176,8 +205,28 @@ function Profile() {
                       <span>{CAT[j.category]?.icon || "✨"}</span>
                       <strong>{j.title}</strong>
                     </div>
-                    <div className="muted">{j.price_per_hour} € / h • {j.status}</div>
+
+                    <div className="muted">
+                      {j.price_per_hour} € / h • {j.status}
+                    </div>
                     <div className="muted">📍 {j.address_text}</div>
+
+                    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                      <button
+                        className="btn-secondary"
+                        onClick={() => navigate(`/jobs/${j.id}`)}
+                      >
+                        Öffnen
+                      </button>
+
+                      <button
+                        className="btn-danger"
+                        onClick={() => deleteJob(j.id)}
+                        disabled={deletingId === j.id}
+                      >
+                        {deletingId === j.id ? "..." : "Löschen"}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -199,8 +248,20 @@ function Profile() {
                         <span>{CAT[j?.category]?.icon || "📌"}</span>
                         <strong>{j?.title || "Job"}</strong>
                       </div>
-                      <div className="muted">{j?.price_per_hour} € / h • {b.status}</div>
+                      <div className="muted">
+                        {j?.price_per_hour} € / h • {b.status}
+                      </div>
                       <div className="muted">📍 {j?.address_text}</div>
+
+                      <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => navigate(`/jobs/${j?.id}`)}
+                          disabled={!j?.id}
+                        >
+                          Details
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
