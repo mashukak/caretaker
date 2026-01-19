@@ -111,8 +111,6 @@ function Jobs() {
   return (
     <section className="page">
       <h2 className="page-title">Jobs finden</h2>
-      <p className="muted">OpenStreetMap (kostenlos) + Filter</p>
-
       {error && <p className="error">{error}</p>}
 
       <div className="filters">
