@@ -8,6 +8,9 @@ import Jobs from "./pages/Jobs";
 import { useAuth } from "./store/AuthContext";
 import JobDetails from "./pages/JobDetails";
 import Profile from "./pages/Profile";
+import "leaflet/dist/leaflet.css";
+import Chats from "./pages/Chats";
+import ChatRoom from "./pages/ChatRoom";
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -23,7 +26,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/auth" element={<Auth />} />
-
+        <Route path="/chats" element={<Chats />} />
+        <Route path="/chats/:chatId" element={<ChatRoom />} />
         <Route
           path="/home"
           element={
@@ -50,14 +54,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/job/:id"
-          element={
-            <ProtectedRoute>
-              <JobDetails />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/jobs/:id" element={<JobDetails />} />
         
         <Route
   path="/profile"

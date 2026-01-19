@@ -1,15 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "../lib/supabase";
 import { useAuth } from "../store/AuthContext";
-import { bookJob, getJobById } from "../store/jobsStore";
-import { getChat, sendMessage } from "../store/chatStore";
+import { getOrCreateChatForBooking } from "../store/chatApi"; 
 
 const CAT = {
   animals: { icon: "🐕", label: "Tiere" },
   elderly: { icon: "👵", label: "Senioren" },
-  cleaning: { icon: "🧹", label: "Haushalt" },
   kids: { icon: "👶", label: "Kinder" },
-  other: { icon: "✨", label: "Sonstiges" },
 };
 
 function JobDetails() {
@@ -17,176 +15,197 @@ function JobDetails() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const job = getJobById(id);
-
-  const isOwner = job?.ownerId === user.id;
-  const canBook = job?.status === "open" && !isOwner;
-
-  const [from, setFrom] = useState(job?.timeFrom || "");
-  const [to, setTo] = useState(job?.timeTo || "");
+  const [job, setJob] = useState(null);
+  const [owner, setOwner] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  // chatId пов'язуємо з jobId
-  const chatId = useMemo(() => (job ? `job_${job.id}` : null), [job]);
-  const chat = chatId ? getChat(chatId) : { messages: [] };
+  useEffect(() => {
+    const load = async () => {
+      setError("");
 
-  const [text, setText] = useState("");
+      const { data, error: e } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (e) return setError(e.message);
+      setJob(data);
+
+      // owner profile (optional)
+      const { data: p, error: ep } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url, rating_avg, rating_count")
+        .eq("id", data.owner_id)
+        .single();
+
+      if (!ep) setOwner(p);
+    };
+
+    load();
+  }, [id]);
+
+ const bookNow = async () => {
+  setError("");
+  if (!user) return navigate("/auth");
+  if (!job) return;
+
+  if (job.status !== "open") return setError("Dieser Job ist nicht mehr verfügbar.");
+  if (job.owner_id === user.id) return setError("Du kannst deine eigene Anzeige nicht buchen.");
+
+  setBusy(true);
+  try {
+    // 1) перевіряємо чи booking вже існує
+    const { data: existing, error: eCheck } = await supabase
+      .from("bookings")
+      .select("id,status")
+      .eq("job_id", job.id)
+      .maybeSingle();
+
+    if (eCheck) throw eCheck;
+
+    if (existing) {
+      // якщо вже існує — просто повідомляємо і не робимо insert
+      return setError("Dieser Job wurde bereits gebucht.");
+    }
+
+    // 2) створюємо booking
+   const { data: bookingRow, error: bErr } = await supabase
+  .from("bookings")
+  .insert({
+    job_id: job.id,
+    client_id: user.id,
+    status: "booked",
+  })
+  .select("id")
+  .single();
+
+if (bErr) throw bErr;
+
+
+    // 3) оновлюємо job статус
+    const { error: jErr } = await supabase
+      .from("jobs")
+      .update({ status: "booked" })
+      .eq("id", job.id);
+
+    if (jErr) throw jErr;
+
+    alert("Gebucht! Du findest es im Profil unter 'Meine Buchungen'.");
+    navigate("/profile", { replace: true });
+    const chatId = await getOrCreateChatForBooking({
+  bookingId: bookingRow.id,
+  userA: user.id,        // хто бронює
+  userB: job.owner_id,   // власник вакансії
+});
+
+navigate(`/chats/${chatId}`, { replace: true });
+
+  } catch (e) {
+    // якщо все одно прилетить уникальна помилка — покажемо нормальний текст
+    const msg = e?.message || "Buchung fehlgeschlagen.";
+    if (msg.includes("bookings_job_id_key")) {
+      setError("Dieser Job wurde bereits gebucht.");
+    } else {
+      setError(msg);
+    }
+  } finally {
+    setBusy(false);
+  }
+};
+
 
   if (!job) {
     return (
       <section className="page">
-        <h2 className="page-title">Job nicht gefunden</h2>
-        <button className="btn-secondary" onClick={() => navigate("/jobs")}>
-          Zurück
-        </button>
+        <h2 className="page-title">Job Details</h2>
+        {error ? <p className="error">{error}</p> : <p className="muted">Laden...</p>}
       </section>
     );
   }
 
-  const confirmBooking = () => {
-    setError("");
-
-    if (!from || !to) return setError("Bitte Uhrzeit auswählen.");
-    if (from >= to) return setError("Ungültige Zeit (Von muss kleiner als Bis sein).");
-
-    try {
-      const updated = bookJob(job.id, {
-        bookedById: user.id,
-        bookedByName: user.fullName,
-        booking: { date: job.date, from, to },
-      });
-
-      // перше системне повідомлення
-      sendMessage(chatId, {
-        fromId: "system",
-        fromName: "System",
-        text: `✅ Buchung bestätigt: ${updated.booking.date} ${updated.booking.from}–${updated.booking.to}`,
-      });
-
-      navigate(`/job/${job.id}`, { replace: true });
-    } catch (e) {
-      setError(e.message || "Buchung fehlgeschlagen.");
-    }
-  };
-
-  const onSend = () => {
-    if (!text.trim()) return;
-
-    sendMessage(chatId, {
-      fromId: user.id,
-      fromName: user.fullName,
-      text: text.trim(),
-    });
-
-    setText("");
-    // перерендериться після navigate (простий спосіб без складного state)
-    navigate(`/job/${job.id}`, { replace: true });
-  };
+  const cat = CAT[job.category];
 
   return (
     <section className="page">
-      <button className="btn-secondary" onClick={() => navigate("/jobs")}>
-        ← Zurück
-      </button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <h2 className="page-title">Job Details</h2>
+        <button className="btn-secondary" onClick={() => navigate("/jobs")}>
+          Zurück
+        </button>
+      </div>
 
-      <div className="details">
-        <div className="details-card">
-          <div className="details-title">
-            <span className="job-icon-big">{CAT[job.category]?.icon ?? "✨"}</span>
+      {error && <p className="error">{error}</p>}
+
+      <div className="job-details-grid">
+        {/* LEFT */}
+        <div className="card">
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <div style={{ fontSize: 28 }}>{cat?.icon || "✨"}</div>
             <div>
-              <h2 className="page-title" style={{ marginBottom: 4 }}>{job.title}</h2>
-              <div className="muted">
-                Von <strong>{job.ownerName}</strong> • {job.pricePerHour} € / h
-              </div>
+              <h3 style={{ margin: 0 }}>{job.title}</h3>
+              <div className="muted">{cat?.label}</div>
+            </div>
+            <div style={{ marginLeft: "auto", fontWeight: 900 }}>
+              {job.price_per_hour} € / h
             </div>
           </div>
 
-          <div className="details-meta">
-            <span>📅 {job.date}</span>
-            <span>⏰ {job.timeFrom}–{job.timeTo}</span>
+          <hr style={{ margin: "14px 0" }} />
+
+          <p><strong>Adresse:</strong> {job.address_text}</p>
+          <p><strong>Datum:</strong> {job.date}</p>
+          <p><strong>Zeit:</strong> {job.time_from} – {job.time_to}</p>
+
+          <p style={{ marginTop: 10 }}><strong>Beschreibung:</strong></p>
+          <p className="muted">{job.description}</p>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+            <button className="btn-primary" onClick={bookNow} disabled={busy || job.status !== "open"}>
+              {job.status !== "open" ? "Nicht verfügbar" : busy ? "..." : "Buchen"}
+            </button>
+
+            <button
+              className="btn-secondary"
+              onClick={() => alert("Chat kommt als nächstes (wir bauen ihn danach)")}
+            >
+              Chat starten
+            </button>
           </div>
+          <p className="muted" style={{ marginTop: 10 }}>
+  Hinweis: Für das Schulprojekt ist das eine Demo. Später Verifizierung, Support und sichere Zahlung.
+</p>
 
-          <div className="job-address">📍 {job.address}</div>
-          <p className="job-desc">{job.description}</p>
-
-          {job.status === "booked" && (
-            <div className="badge">
-              ✅ Gebucht von <strong>{job.bookedByName}</strong> ({job.booking?.from}–{job.booking?.to})
-            </div>
-          )}
-
-          {canBook && (
-            <div className="bookbox">
-              <h3>Buchen</h3>
-              <div className="grid3">
-                <div>
-                  <label>Datum</label>
-                  <input type="text" value={job.date} readOnly />
-                </div>
-                <div>
-                  <label>Von</label>
-                  <input type="time" value={from} onChange={(e) => setFrom(e.target.value)} />
-                </div>
-                <div>
-                  <label>Bis</label>
-                  <input type="time" value={to} onChange={(e) => setTo(e.target.value)} />
-                </div>
-              </div>
-
-              {error && <p className="error">{error}</p>}
-
-              <button className="btn-primary" onClick={confirmBooking}>
-                Buchung bestätigen
-              </button>
-
-              <p className="muted" style={{ marginTop: 10 }}>
-                (Demo) Zahlung würde hier passieren. Plattformgebühr: 3%.
-              </p>
-            </div>
-          )}
         </div>
+        
 
-        <div className="details-card">
-          <h3>Chat</h3>
 
-          {job.status === "open" && (
-            <p className="muted">
-              Chat ist verfügbar nach Buchung (Demo).
-            </p>
-          )}
+        {/* RIGHT */}
+        <div className="card">
+          <h3>Ersteller</h3>
 
-          {job.status !== "open" && (
-            <>
-              <div className="chat">
-                {chat.messages.length === 0 ? (
-                  <div className="empty">Noch keine Nachrichten.</div>
+          {owner ? (
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div className="avatar" style={{ width: 44, height: 44 }}>
+                {owner.avatar_url ? (
+                  <img src={owner.avatar_url} alt="owner" />
                 ) : (
-                  chat.messages.map((m) => (
-                    <div
-                      key={m.id}
-                      className={
-                        m.fromId === user.id ? "msg me" : m.fromId === "system" ? "msg system" : "msg"
-                      }
-                    >
-                      <div className="msg-name">{m.fromName}</div>
-                      <div>{m.text}</div>
-                    </div>
-                  ))
+                  <span className="avatar-fallback">{(owner.full_name || "U").slice(0, 1).toUpperCase()}</span>
                 )}
               </div>
-
-              <div className="chat-input">
-                <input
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Nachricht schreiben..."
-                />
-                <button className="btn-primary" onClick={onSend}>
-                  Senden
-                </button>
+              <div>
+                <div style={{ fontWeight: 900 }}>{owner.full_name || "User"}</div>
+                <div className="muted">
+                  ⭐ {owner.rating_avg ?? 0} ({owner.rating_count ?? 0})
+                </div>
               </div>
-            </>
+            </div>
+          ) : (
+            <p className="muted">Laden...</p>
           )}
+
+          <hr style={{ margin: "14px 0" }} />
         </div>
       </div>
     </section>

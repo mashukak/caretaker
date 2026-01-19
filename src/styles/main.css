@@ -504,3 +504,261 @@ nav a {
   display: grid;
   gap: 8px;
 }
+
+.jobs-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.map-sticky {
+  position: sticky;
+  top: 90px;
+  height: calc(100vh - 120px);
+}
+
+.leaflet-wrap {
+  height: 100%;
+  border-radius: 16px;
+  border: 1px solid #e5e5ef;
+  overflow: hidden;
+  background: white;
+}
+
+.leaflet-map {
+  height: 100%;
+  width: 100%;
+}
+
+.jobs-list-scroll {
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  display: grid;
+  gap: 12px;
+  padding-right: 6px;
+}
+
+/* Emoji markers for Leaflet */
+.emoji-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.emoji-marker__inner {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  background: rgba(106, 76, 147, 0.16);
+  /* фіолетовий */
+  border: 2px solid rgba(63, 167, 150, 0.55);
+  /* зелений */
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.nav-right {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: white;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  overflow: hidden;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(106, 76, 147, 0.25);
+  background: rgba(106, 76, 147, 0.10);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-fallback {
+  font-weight: 900;
+}
+
+.profile-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.profile-card .profile-head {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.profile-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(106, 76, 147, 0.25);
+  background: rgba(106, 76, 147, 0.10);
+  display: grid;
+  place-items: center;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-avatar-fallback {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.profile-name {
+  font-weight: 900;
+  font-size: 18px;
+}
+
+.profile-fields {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.profile-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+}
+
+.profile-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.mini-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.mini-item {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 10px;
+  background: white;
+}
+
+.mini-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 980px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.job-details-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .job-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chat-box {
+  height: 55vh;
+  overflow: auto;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  padding: 12px;
+  background: white;
+  display: grid;
+  gap: 10px;
+}
+
+.chat-msg {
+  display: grid;
+  gap: 4px;
+  max-width: 78%;
+}
+
+.chat-msg.mine {
+  margin-left: auto;
+  text-align: right;
+}
+
+.bubble {
+  display: inline-block;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(106, 76, 147, 0.10);
+}
+
+.chat-msg.mine .bubble {
+  background: rgba(63, 167, 150, 0.12);
+}
+
+.chat-input {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.chat-input input {
+  flex: 1;
+}
+
+.createjob-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .createjob-grid {
+    grid-template-columns: 1fr;
+  }
+}
