@@ -11,6 +11,8 @@ import Profile from "./pages/Profile";
 import "leaflet/dist/leaflet.css";
 import Chats from "./pages/Chats";
 import ChatRoom from "./pages/ChatRoom";
+import Footer from "./components/Footer";
+
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -66,6 +68,7 @@ function App() {
 />
 
       </Routes>
+      <Footer />
     </BrowserRouter>
   );
 }
